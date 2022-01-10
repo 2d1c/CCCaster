@@ -105,6 +105,9 @@ private:
     // Named pipe
     void *_pipe = 0;
 
+    // Pipe index
+    int pipeIdx;
+
     // Process ID
     int _processId = 0;
 

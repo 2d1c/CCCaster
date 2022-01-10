@@ -73,25 +73,23 @@ void ProcessManager::connectPipe()
 
     LOG ( "Creating pipe" );
 
-    _pipe = CreateFile (
-                NAMED_PIPE,                              // name of the pipe
-                GENERIC_READ | GENERIC_WRITE,            // 2-way pipe
-                FILE_SHARE_READ | FILE_SHARE_WRITE,      // R/W sharing mode
-                0,                                       // default security
-                OPEN_EXISTING,                           // open existing pipe
-                FILE_ATTRIBUTE_NORMAL,                   // default attributes
-                0 );                                     // no template file
-
-    if ( _pipe == INVALID_HANDLE_VALUE ) {
+    char pipeName[] = NAMED_PIPE;
+    for (int pipeIdx = 0; pipeIdx < NUM_PIPES; pipeIdx++)
+    {
+        pipeName[strlen(pipeName) - 1] = '0' + pipeIdx;
         _pipe = CreateFile (
-                NAMED_PIPE2,                             // name of the pipe
-                GENERIC_READ | GENERIC_WRITE,            // 2-way pipe
-                FILE_SHARE_READ | FILE_SHARE_WRITE,      // R/W sharing mode
-                0,                                       // default security
-                OPEN_EXISTING,                           // open existing pipe
-                FILE_ATTRIBUTE_NORMAL,                   // default attributes
-                0 );                                     // no template file
+                    pipeName,                                // name of the pipe
+                    GENERIC_READ | GENERIC_WRITE,            // 2-way pipe
+                    FILE_SHARE_READ | FILE_SHARE_WRITE,      // R/W sharing mode
+                    0,                                       // default security
+                    OPEN_EXISTING,                           // open existing pipe
+                    FILE_ATTRIBUTE_NORMAL,                   // default attributes
+                    0 );                                     // no template file
+
+        if (_pipe != INVALID_HANDLE_VALUE)
+            break;
     }
+
     if ( _pipe == INVALID_HANDLE_VALUE )
         THROW_WIN_EXCEPTION ( GetLastError(), "CreateFile failed", ERROR_PIPE_START );
 

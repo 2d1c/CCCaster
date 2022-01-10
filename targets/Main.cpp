@@ -30,6 +30,105 @@ void runMain ( const IpAddrPort& address, const Serializable& config );
 void runFake ( const IpAddrPort& address, const Serializable& config );
 void stopMain();
 
+static bool modifyExe()
+{
+    // Sanity check for original binary
+    DWORD origExeExists = GetFileAttributes ( ( ProcessManager::gameDir + MBAA_EXE ).c_str() ) != INVALID_FILE_ATTRIBUTES;
+    if (!origExeExists)
+    {
+        lastError += "\nCouldn't find " MBAA_EXE;
+        return false;
+    }
+
+    // Open the binary
+    std::ifstream inFile(ProcessManager::gameDir + MBAA_EXE, std::ifstream::binary);
+    if (!inFile.is_open())
+    {
+        lastError += "\nCouldn't open " + ProcessManager::gameDir + MBAA_EXE;
+        return false;
+    }
+
+    // Determine size of binary
+    inFile.seekg(0, std::ios::end);
+    size_t size = inFile.tellg();
+    inFile.seekg(0, std::ios::beg);
+
+       
+    // Allocate memory for file and read in bytes
+    std::vector<char> buf(size);
+    inFile.read(buf.data(), size);
+    if (!inFile)
+    {
+        lastError += "\nError reading from " + ProcessManager::gameDir + MBAA_EXE;
+        return false;
+    }
+    inFile.close();
+
+    // Find the global mutex name
+    char mutexName[] = "MELTY BLOOD Actress Again Current Code Ver.1.07";
+    bool mutexFound = false;
+    size_t mutexOffset = 0;
+    for (; mutexOffset < size - sizeof(mutexName); mutexOffset++)
+    {
+        if (strncmp(buf.data() + mutexOffset, mutexName, sizeof(mutexName)) == 0)
+        {
+            mutexFound = true;
+            break;
+        }
+    }
+    if (!mutexFound)
+    {
+        lastError += "\nError trying to modify " + ProcessManager::gameDir + MBAA_EXE + ": Mutex string not found";
+        return false;
+    }
+
+    char titleStr[] = "MELTY BLOOD Actress Again Current Code Ver.1.07 Rev.1.4.0";
+    bool titleFound = false;
+    size_t titleOffset = 0;
+    for (; titleOffset < size - sizeof(titleStr); titleOffset++)
+    {
+        if (strncmp(buf.data() + titleOffset, titleStr, sizeof(titleStr)) == 0)
+        {
+            titleFound = true;
+            break;
+        }
+    }
+    if (!titleFound)
+    {
+        lastError += "\nError trying to modify " + ProcessManager::gameDir + MBAA_EXE + ": Title string not found";
+        return false;
+    }
+
+    // Create modified binaries with unique mutex names and titles, so that they can be run simultaneously
+    for (int i = 0; i < NUM_PIPES; i++)
+    {
+        std::string filename = ProcessManager::gameDir + MBAA_EXE + std::to_string(i) + ".exe";
+
+        // Check if the modified binary already exists
+        DWORD modExeExists = GetFileAttributes ( filename.c_str() ) != INVALID_FILE_ATTRIBUTES;
+        if (modExeExists)
+            continue;
+
+        // Replace the global mutex name with a local one
+        mutexName[strlen(mutexName) - 1] = '0' + i;
+        titleStr[strlen(titleStr) - 2] = ' ';
+        titleStr[strlen(titleStr) - 1] = '0' + i;
+        strcpy(buf.data() + mutexOffset, mutexName);
+        strcpy(buf.data() + titleOffset, titleStr);
+
+        // Create the modified .exe
+        std::ofstream outFile(filename, std::ofstream::binary);
+        if (!outFile.is_open())
+        {
+            lastError += "\nCouldn't open " + ProcessManager::gameDir + filename;
+            return false;
+        }
+        outFile.write(buf.data(), buf.size());
+        outFile.close();
+    }
+
+    return true;
+}
 
 static bool initDirsAndSanityCheck ( bool checkGameExe = true )
 {
@@ -386,7 +485,7 @@ int main ( int argc, char *argv[] )
     SetConsoleCtrlHandler ( consoleCtrl, TRUE );
 
     // Initialize the main directories, this also does a sanity check
-    if ( ! initDirsAndSanityCheck ( !opt[Options::Tests] && !opt[Options::Dummy] ) )
+    if (!modifyExe() || ! initDirsAndSanityCheck ( !opt[Options::Tests] && !opt[Options::Dummy] ) )
     {
         PRINT ( "%s", trimmed ( lastError ) );
         PRINT ( "Press any key to exit." );

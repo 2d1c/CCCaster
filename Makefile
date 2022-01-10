@@ -24,6 +24,7 @@ README = README.md
 CHANGELOG = ChangeLog.txt
 RELAY_LIST = relay_list.txt
 LOBBY_LIST = lobby_list.txt
+NUM_PIPES = 10
 
 # Library sources
 GTEST_CC_SRCS = 3rdparty/gtest/fused-src/gtest/gtest-all.cc
@@ -63,8 +64,8 @@ $(info VAR=$(UNAME))
 
 # OS specific tools / settings
 ifeq ($(OS),Windows_NT)
-	CHMOD_X = icacls $@ /grant Everyone:F
-	GRANT = icacls $@ /grant Everyone:F
+	CHMOD_X = icacls $@ //grant Everyone:F
+	GRANT = icacls $@ //grant Everyone:F
 	ASTYLE = 3rdparty/astyle.exe
 	OPENGL_HEADERS = /usr/mingw/i686-w64-mingw32/include/GL
 else
@@ -85,6 +86,7 @@ DEFINES += -DMBAA_EXE='"$(MBAA_EXE)"' -DBINARY='"$(BINARY)"' -DFOLDER='"$(FOLDER
 DEFINES += -DHOOK_DLL='"$(FOLDER)\\$(DLL)"' -DLAUNCHER='"$(FOLDER)\\$(LAUNCHER)"' -DUPDATER='"$(UPDATER)"'
 DEFINES += -DRELAY_LIST='"$(RELAY_LIST)"' -DTAG='"$(TAG)"'
 DEFINES += -DLOBBY_LIST='"$(LOBBY_LIST)"'
+DEFINES += -DNUM_PIPES=$(NUM_PIPES)
 INCLUDES = -I$(CURDIR) -I$(CURDIR)/netplay -I$(CURDIR)/lib -I$(CURDIR)/tests -I$(CURDIR)/3rdparty
 INCLUDES += -I$(CURDIR)/3rdparty/cereal/include -I$(CURDIR)/3rdparty/gtest/include -I$(CURDIR)/3rdparty/minhook/include
 INCLUDES += -I$(CURDIR)/3rdparty/d3dhook -I$(CURDIR)/3rdparty/framedisplay

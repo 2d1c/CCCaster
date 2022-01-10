@@ -31,7 +31,7 @@ string ProcessManager::gameDir;
 string ProcessManager::appDir;
 
 
-ProcessManager::ProcessManager ( Owner *owner ) : owner ( owner ) {}
+ProcessManager::ProcessManager ( Owner *owner ) : owner ( owner ), pipeIdx(-1) {}
 
 ProcessManager::~ProcessManager()
 {
@@ -127,27 +127,25 @@ void ProcessManager::openGame ( bool highPriority, bool isTraining )
 {
     LOG ( "Opening pipe" );
 
-    _pipe = CreateNamedPipe (
-                NAMED_PIPE,                                          // name of the pipe
-                PIPE_ACCESS_DUPLEX,                                  // 2-way pipe
-                PIPE_TYPE_BYTE | PIPE_READMODE_BYTE | PIPE_WAIT,     // byte stream + blocking
-                1,                                                   // only allow 1 instance of this pipe
-                1024,                                                // outbound buffer size
-                1024,                                                // inbound buffer size
-                0,                                                   // use default wait time
-                0 );                                                 // use default security attributes
-
-    if ( _pipe == INVALID_HANDLE_VALUE ){
+    pipeIdx = 0;
+    char pipeName[] = NAMED_PIPE;
+    for (; pipeIdx < NUM_PIPES; pipeIdx++)
+    {
+        pipeName[strlen(pipeName) - 1] = '0' + pipeIdx;
         _pipe = CreateNamedPipe (
-                NAMED_PIPE2,                                         // name of the pipe
-                PIPE_ACCESS_DUPLEX,                                  // 2-way pipe
-                PIPE_TYPE_BYTE | PIPE_READMODE_BYTE | PIPE_WAIT,     // byte stream + blocking
-                1,                                                   // only allow 1 instance of this pipe
-                1024,                                                // outbound buffer size
-                1024,                                                // inbound buffer size
-                0,                                                   // use default wait time
-                0 );                                                 // use default security attributes
+                    pipeName,                                            // name of the pipe
+                    PIPE_ACCESS_DUPLEX,                                  // 2-way pipe
+                    PIPE_TYPE_BYTE | PIPE_READMODE_BYTE | PIPE_WAIT,     // byte stream + blocking
+                    1,                                                   // only allow 1 instance of this pipe
+                    1024,                                                // outbound buffer size
+                    1024,                                                // inbound buffer size
+                    0,                                                   // use default wait time
+                    0 );                                                 // use default security attributes
+
+        if (_pipe != INVALID_HANDLE_VALUE)
+            break;
     }
+
     if ( _pipe == INVALID_HANDLE_VALUE )
         THROW_WIN_EXCEPTION ( GetLastError(), "CreateNamedPipe failed", ERROR_PIPE_OPEN );
 
@@ -187,21 +185,19 @@ void ProcessManager::openGame ( bool highPriority, bool isTraining )
         {
             Sleep ( PIPE_CONNECT_TIMEOUT );
 
-            HANDLE tmpPipe = CreateFile ( NAMED_PIPE, GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE,
+            std::vector<HANDLE> pipes;
+            char pipeName[] = NAMED_PIPE;
+            for (uint32_t i = 0; i < NUM_PIPES; i++)
+            {
+                pipeName[strlen(pipeName) - 1] = '0' + i;
+                auto tmpPipe = CreateFile ( pipeName, GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE,
                                           0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0 );
+                if (tmpPipe != INVALID_HANDLE_VALUE)
+                    pipes.push_back(tmpPipe);
+            }
 
-            HANDLE tmpPipe2 = CreateFile ( NAMED_PIPE2, GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE,
-                                          0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0 );
-
-
-            if ( tmpPipe == INVALID_HANDLE_VALUE )
-                return;
-
-            if ( tmpPipe2 == INVALID_HANDLE_VALUE )
-                return;
-
-            CloseHandle ( tmpPipe );
-            CloseHandle ( tmpPipe2 );
+            for (auto& pipe: pipes)
+                CloseHandle ( pipe );
         }
     };
 
@@ -257,12 +253,14 @@ void ProcessManager::closeGame()
     LOG ( "Closing game" );
 
     // Find and close any lingering windows
+#if 0
     for ( const string& window : { CC_TITLE, CC_STARTUP_TITLE } )
     {
         void *hwnd;
         if ( ( hwnd = findWindow ( window, false ) ) )
             PostMessage ( ( HWND ) hwnd, WM_CLOSE, 0, 0 );
     }
+#endif
 }
 
 void ProcessManager::disconnectPipe()
