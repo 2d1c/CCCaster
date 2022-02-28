@@ -155,7 +155,7 @@ void ProcessManager::openGame ( bool highPriority, bool isTraining )
     string path = appDir + LAUNCHER;
     vector<string> stringArgs;
     stringArgs.push_back ( "\"" + path + "\"" );
-    stringArgs.push_back ( "\"" + gameDir + MBAA_EXE + "\"" );
+    stringArgs.push_back ( "\"" + gameDir + (MBAA_EXE + std::to_string(pipeIdx) + ".exe") + "\"" );
     stringArgs.push_back ( "\"" + appDir + HOOK_DLL + "\"" );
     stringArgs.push_back ( "\"" + appDir + "framestep.dll" + "\"" );
     if ( isTraining )
@@ -368,7 +368,7 @@ string ProcessManager::fetchGameUserName()
 
 array<char, 10> ProcessManager::fetchKeyboardConfig()
 {
-    const string file = gameDir + MBAA_EXE;
+    const string file = gameDir + MBAA_EXE + ".exe";
 
     LOG ( "Reading: %s", file );
 
